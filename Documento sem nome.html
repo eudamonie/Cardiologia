@@ -1,0 +1,767 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Interativo: SCA, IC e ECG</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .quiz-option {
+            transition: all 0.2s ease-in-out;
+        }
+        .quiz-option:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .selected {
+            background-color: #3b82f6 !important; /* blue-500 */
+            color: white;
+            border-color: #2563eb; /* blue-600 */
+        }
+        .correct {
+            background-color: #22c55e !important; /* green-500 */
+            color: white;
+            border-color: #16a34a; /* green-600 */
+        }
+        .incorrect {
+            background-color: #ef4444 !important; /* red-500 */
+            color: white;
+            border-color: #dc2626; /* red-600 */
+        }
+        .disabled-option {
+            cursor: not-allowed;
+        }
+        .disabled-option .x-marker {
+            display: inline-block;
+        }
+        .x-marker {
+            display: none;
+            color: #ef4444;
+            font-weight: bold;
+            margin-left: auto;
+            padding-left: 1rem;
+        }
+        .column-container {
+            display: flex;
+            justify-content: space-between;
+            gap: 2rem;
+            width: 100%;
+        }
+        .column {
+            width: 48%;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+
+    <div id="app" class="container mx-auto p-4 md:p-8 max-w-4xl">
+        
+        <!-- Tela Inicial -->
+        <div id="start-screen" class="text-center bg-white p-8 rounded-xl shadow-lg">
+            <h1 class="text-3xl md:text-4xl font-bold text-blue-600 mb-4">Quiz de Cardiologia</h1>
+            <p class="text-gray-600 mb-6">Teste seus conhecimentos em Síndrome Coronariana Aguda, Insuficiência Cardíaca e ECG.</p>
+            <p class="text-sm text-gray-500 mb-8">Você responderá a 20 questões de múltipla escolha. Ao final, receberá um gabarito comentado e um diagnóstico do seu desempenho. Boa sorte!</p>
+            <button id="start-btn" class="bg-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-700 transition-colors shadow-md">Começar</button>
+        </div>
+
+
+        <!-- Tela do Quiz -->
+        <div id="quiz-screen" class="hidden">
+            <div class="bg-white p-6 md:p-8 rounded-xl shadow-lg">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold text-blue-700">Questão <span id="question-number"></span> de 20</h2>
+                    <div id="timer" class="text-lg font-semibold"></div>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2.5 mb-6">
+                    <div id="progress-bar" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div>
+                </div>
+                
+                <div id="question-container" class="mb-6">
+                    <!-- Conteúdo da questão injetado aqui -->
+                </div>
+
+
+                <div class="flex justify-between mt-8">
+                    <button id="prev-btn" class="bg-gray-300 text-gray-700 font-bold py-2 px-6 rounded-lg hover:bg-gray-400 transition-colors">Anterior</button>
+                    <button id="next-btn" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-700 transition-colors">Próxima</button>
+                    <button id="finish-btn" class="hidden bg-green-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-700 transition-colors">Finalizar</button>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- Tela de Resultados -->
+        <div id="results-screen" class="hidden">
+             <div class="bg-white p-6 md:p-8 rounded-xl shadow-lg text-center">
+                <h2 class="text-3xl font-bold text-blue-700 mb-4">Seu Desempenho</h2>
+                <p class="text-5xl font-bold mb-4"><span id="score"></span>%</p>
+                <p class="text-lg text-gray-600 mb-6">Você acertou <span id="correct-answers"></span> de 20 questões.</p>
+                <p id="final-message" class="text-base italic text-gray-700 mb-8 p-4 bg-yellow-100 border-l-4 border-yellow-400 rounded"></p>
+
+
+                <div class="text-left mt-8">
+                    <h3 class="text-2xl font-bold mb-4 text-gray-800">Diagnóstico Pedagógico</h3>
+                    <p class="mb-4 text-gray-600">Analisamos seus erros para te ajudar a focar nos estudos. Veja os pontos que merecem mais atenção:</p>
+                    <div id="pedagogical-diagnosis" class="space-y-4">
+                        <!-- Diagnóstico injetado aqui -->
+                    </div>
+                </div>
+                
+                <div class="mt-8">
+                     <button id="review-btn" class="bg-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-700 transition-colors shadow-md">Ver Gabarito Comentado</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Modal do Gabarito -->
+        <div id="review-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden">
+            <div class="bg-white rounded-lg shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+                <div class="sticky top-0 bg-white p-4 border-b flex justify-between items-center">
+                    <h2 class="text-2xl font-bold text-blue-700">Gabarito Comentado</h2>
+                    <button id="close-modal-btn" class="text-gray-500 hover:text-gray-800 text-3xl">&times;</button>
+                </div>
+                <div id="review-content" class="p-6 space-y-6">
+                    <!-- Conteúdo do gabarito injetado aqui -->
+                </div>
+            </div>
+        </div>
+
+
+    </div>
+
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const questions = [
+            // Questões de Múltipla Escolha Tradicional (15)
+            {
+                id: 1,
+                type: 'mcq',
+                theme: 'Raciocínio Clínico (SCA)',
+                question: "Paciente masculino, 58 anos, diabético e hipertenso, chega ao pronto-socorro com dor precordial em aperto há 45 minutos, irradiando para membro superior esquerdo. ECG de entrada mostra supradesnivelamento do segmento ST de 3 mm em V2, V3 e V4. Qual a conduta mais apropriada neste momento?",
+                options: [
+                    { text: "Administrar AAS, clopidogrel, heparina, solicitar troponina e aguardar resultado para decidir sobre reperfusão.", isCorrect: false, category: 'confuser' },
+                    { text: "Realizar angioplastia coronária primária (ICP) imediatamente, se disponível em menos de 120 minutos do primeiro contato médico.", isCorrect: true },
+                    { text: "Iniciar terapia com betabloqueador intravenoso para controle da dor e da frequência cardíaca.", isCorrect: false, category: 'plausible' },
+                    { text: "Realizar ecocardiograma para confirmar a disfunção ventricular antes de qualquer terapia invasiva.", isCorrect: false, category: 'plausible' },
+                    { text: "Administrar um copo de suco de laranja, pois a dor pode ser um sintoma de hipoglicemia no paciente diabético.", isCorrect: false, category: 'absurd' },
+                ],
+                explanation: "A alternativa correta é a B. Diante de um Infarto Agudo do Miocárdio com Supradesnivelamento do Segmento ST (IAMCSST), a terapia de reperfusão é a prioridade absoluta. A angioplastia primária é o método preferencial se puder ser realizada em tempo hábil (porta-balão < 90 min ou < 120 min da chegada). Aguardar exames (A) ou realizar outros diagnósticos (D) atrasa o tratamento e aumenta a mortalidade. Betabloqueadores (C) são importantes, mas não a prioridade inicial sobre a reperfusão."
+            },
+            {
+                id: 2,
+                type: 'mcq',
+                theme: 'Leitura de Exames (ECG)',
+                question: "Um ECG de 12 derivações revela ritmo sinusal, frequência de 70 bpm, ausência de ondas Q patológicas, mas com um padrão rSR' em V1 e onda S empastada em D1 e V6. Qual o diagnóstico eletrocardiográfico mais provável?",
+                options: [
+                    { text: "Bloqueio de ramo esquerdo (BRE).", isCorrect: false, category: 'confuser' },
+                    { text: "Sobrecarga ventricular direita.", isCorrect: false, category: 'plausible' },
+                    { text: "Bloqueio de ramo direito (BRD).", isCorrect: true },
+                    { text: "Síndrome de Brugada tipo 1.", isCorrect: false, category: 'plausible' },
+                    { text: "Eletrodos de V1 e V2 trocados.", isCorrect: false, category: 'absurd' },
+                ],
+                explanation: "A alternativa correta é a C. O padrão rSR' em V1 com QRS > 120ms (implícito pela descrição de bloqueio) e onda S alargada e empastada em derivações laterais (D1, V5, V6) é a apresentação clássica do Bloqueio de Ramo Direito. O BRE (A) cursa com QRS alargado com morfologia de 'torre' em derivações laterais e 'V' profundo em V1."
+            },
+            {
+                id: 3,
+                type: 'mcq',
+                theme: 'Associação de Conteúdos (Farmacologia e IC)',
+                question: "Paciente com Insuficiência Cardíaca com Fração de Ejeção Reduzida (ICFER), classe funcional II da NYHA, em uso de enalapril e carvedilol em doses otimizadas. Apresenta-se assintomático, com PA 110/70 mmHg e FC 65 bpm. Qual fármaco, pertencente ao 'quarteto fantástico' da ICFER, deve ser adicionado ao esquema terapêutico?",
+                options: [
+                    { text: "Digoxina.", isCorrect: false, category: 'plausible' },
+                    { text: "Furosemida.", isCorrect: false, category: 'confuser' },
+                    { text: "Amiodarona.", isCorrect: false, category: 'plausible' },
+                    { text: "Dapagliflozina.", isCorrect: true },
+                    { text: "Hidralazina com nitrato.", isCorrect: false, category: 'absurd' },
+                ],
+                explanation: "A alternativa correta é a D. O tratamento atual da ICFER é baseado em quatro pilares (o 'quarteto fantástico'): IECA/BRA/ARNI, betabloqueador, antagonista do receptor mineralocorticoide (ex: espironolactona) e inibidor de SGLT2 (ex: dapagliflozina). Como o paciente já usa IECA e betabloqueador, o próximo passo seria adicionar um ARM e um iSGLT2. Dentre as opções, a dapagliflozina é a única que completa o quarteto moderno. Furosemida (B) é para congestão, não para benefício de mortalidade em pacientes euvolêmicos. Digoxina (A) é para casos selecionados."
+            },
+            // Questões com Numeração Romana (2)
+            {
+                id: 4,
+                type: 'roman',
+                theme: 'Raciocínio Clínico (IC)',
+                question: "Paciente de 72 anos, com diagnóstico de Insuficiência Cardíaca, chega ao ambulatório para consulta de rotina. Ao exame físico, você observa os seguintes achados. Analise as afirmações sobre a semiologia da Insuficiência Cardíaca.",
+                statements: [
+                    "I. A presença de turgência jugular patológica a 45º é um sinal de alta especificidade para congestão e pressões de enchimento elevadas.",
+                    "II. A terceira bulha cardíaca (B3) é um achado comum e esperado em idosos saudáveis, não tendo valor diagnóstico na IC.",
+                    "III. Estertores crepitantes bibasais são patognomônicos de congestão pulmonar por IC e não ocorrem em outras condições.",
+                    "IV. O refluxo hepatojugular positivo indica aumento da pressão venosa central e corrobora o diagnóstico de congestão sistêmica.",
+                    "V. Edema de membros inferiores é um sinal sensível, mas pouco específico, podendo estar presente em diversas outras patologias."
+                ],
+                options: [
+                    { text: "Apenas I, II e III estão corretas.", isCorrect: false },
+                    { text: "Apenas I, IV e V estão corretas.", isCorrect: true },
+                    { text: "Apenas II, III e IV estão corretas.", isCorrect: false },
+                    { text: "Apenas III e V estão corretas.", isCorrect: false },
+                    { text: "Todas as afirmações estão corretas.", isCorrect: false },
+                ],
+                explanation: "A alternativa correta é a B. A afirmação I está correta, turgência jugular é um sinal específico de congestão. A afirmação IV está correta, o refluxo hepatojugular também indica congestão. A afirmação V está correta, o edema é sensível mas não específico. A afirmação II está incorreta; B3 em adultos/idosos é patológica e indica sobrecarga de volume (ritmo de galope). A afirmação III está incorreta; estertores podem ocorrer em pneumonias, fibrose pulmonar, etc., não sendo patognomônicos de IC."
+            },
+            {
+                id: 5,
+                type: 'roman',
+                theme: 'Associação de Conteúdos (ECG e Eletrólitos)',
+                question: "Um paciente com insuficiência renal crônica em hemodiálise falta a duas sessões e chega ao pronto-socorro sonolento e com fraqueza muscular generalizada. O ECG é realizado. Analise as possíveis alterações eletrocardiográficas relacionadas à principal suspeita diagnóstica.",
+                statements: [
+                    "I. Ondas T apiculadas, de base estreita e simétricas, principalmente em derivações precordiais.",
+                    "II. Achatamento ou inversão da onda P, podendo evoluir para ausência de onda P.",
+                    "III. Alargamento progressivo do complexo QRS, que pode assumir um padrão 'sine-wave' (onda senoidal).",
+                    "IV. Encurtamento do intervalo QT, sendo um dos primeiros sinais a aparecer.",
+                    "V. Surgimento de onda U proeminente e infradesnivelamento do segmento ST."
+                ],
+                options: [
+                    { text: "Apenas I, II e III estão corretas.", isCorrect: true },
+                    { text: "Apenas I, IV e V estão corretas.", isCorrect: false },
+                    { text: "Apenas II e III estão corretas.", isCorrect: false },
+                    { text: "Apenas IV e V estão corretas.", isCorrect: false },
+                    { text: "Todas as afirmações estão corretas.", isCorrect: false },
+                ],
+                explanation: "A alternativa correta é a A. A principal suspeita é hipercalemia grave. As alterações clássicas são: I (onda T apiculada), II (achatamento da onda P) e III (alargamento do QRS). O padrão 'sine-wave' é um sinal de extrema gravidade. A afirmação IV está incorreta; a hipercalemia não encurta o QT. A afirmação V descreve as alterações da hipocalemia, o oposto do esperado."
+            },
+            // Relação de Colunas (2)
+            {
+                id: 6,
+                type: 'columns',
+                theme: 'Leitura de Exames (ECG e Localização do IAM)',
+                question: "Associe as paredes do ventrículo esquerdo acometidas no IAMCSST com as derivações que classicamente apresentam o supradesnivelamento do segmento ST.",
+                columns: {
+                    A: ["1. Parede Anterior", "2. Parede Inferior", "3. Parede Septal", "4. Parede Lateral Alta"],
+                    B: ["( ) DII, DIII e aVF", "( ) V1, V2", "( ) DI, aVL", "( ) V3, V4"]
+                },
+                options: [
+                    { text: "1-D, 2-A, 3-B, 4-C", isCorrect: true },
+                    { text: "1-B, 2-C, 3-A, 4-D", isCorrect: false },
+                    { text: "1-D, 2-B, 3-C, 4-A", isCorrect: false },
+                    { text: "1-A, 2-D, 3-B, 4-C", isCorrect: false },
+                    { text: "1-C, 2-A, 3-D, 4-B", isCorrect: false },
+                ],
+                explanation: "A alternativa correta é a A. A correlação correta é: Parede Anterior (V3, V4), Parede Inferior (DII, DIII, aVF), Parede Septal (V1, V2) e Parede Lateral Alta (DI, aVL). Conhecer essa topografia é fundamental para localizar a artéria culpada e prever possíveis complicações."
+            },
+            {
+                id: 7,
+                type: 'columns',
+                theme: 'Associação de Conteúdos (Farmacologia e SCA)',
+                question: "Correlacione os fármacos utilizados na Síndrome Coronariana Aguda com seus respectivos mecanismos de ação ou objetivos terapêuticos primários.",
+                columns: {
+                    A: ["1. Nitroglicerina", "2. Morfina", "3. Clopidogrel", "4. Heparina Não Fracionada"],
+                    B: ["( ) Inibição da agregação plaquetária via receptor P2Y12.", "( ) Potencializa a ação da antitrombina III, inibindo trombina e fator Xa.", "( ) Venodilatação, reduzindo pré-carga e aliviando a dor isquêmica.", "( ) Analgesia central e venodilatação, usada em dor refratária."]
+                },
+                options: [
+                    { text: "1-B, 2-A, 3-D, 4-C", isCorrect: false },
+                    { text: "1-C, 2-D, 3-A, 4-B", isCorrect: true },
+                    { text: "1-D, 2-C, 3-B, 4-A", isCorrect: false },
+                    { text: "1-A, 2-B, 3-C, 4-D", isCorrect: false },
+                    { text: "1-C, 2-A, 3-D, 4-B", isCorrect: false },
+                ],
+                explanation: "A alternativa correta é a B. A correlação correta é: Nitroglicerina (C) causa venodilatação e alivia a dor anginosa. Morfina (D) tem efeito analgésico potente e também venodilatador. Clopidogrel (A) é um antiagregante que inibe o receptor P2Y12. Heparina (B) é um anticoagulante que age via antitrombina III."
+            },
+            // Verdadeiro ou Falso (1)
+            {
+                id: 8,
+                type: 'true-false',
+                theme: 'Raciocínio Clínico (IC)',
+                question: "Julgue as seguintes afirmativas sobre o manejo da Insuficiência Cardíaca Descompensada (perfil 'quente e úmido').",
+                statements: [
+                    "O uso de diuréticos de alça, como a furosemida, é a base do tratamento para alívio da congestão.",
+                    "A introdução ou aumento da dose de betabloqueadores é recomendada na fase aguda para controle adrenérgico.",
+                    "Vasodilatadores como a nitroglicerina podem ser usados para reduzir a pré-carga e a pós-carga se a pressão arterial permitir.",
+                    "A ventilação não invasiva (VNI) com pressão positiva é contraindicada, pois piora o retorno venoso.",
+                    "A dosagem de peptídeos natriuréticos (BNP/NT-proBNP) não tem utilidade no cenário de emergência."
+                ],
+                options: [
+                    { text: "V - F - V - F - F", isCorrect: true },
+                    { text: "V - V - V - F - F", isCorrect: false },
+                    { text: "F - F - V - V - V", isCorrect: false },
+                    { text: "V - F - F - V - F", isCorrect: false },
+                    { text: "F - V - F - F - V", isCorrect: false },
+                ],
+                explanation: "A sequência correta é V-F-V-F-F. (V) Diuréticos são a pedra angular para tratar a congestão. (F) Betabloqueadores devem ser mantidos, mas não iniciados ou aumentados na descompensação aguda, pois podem piorar o débito cardíaco. (V) Vasodilatadores são úteis em pacientes hipertensos ou normotensos para alívio rápido dos sintomas. (F) A VNI é benéfica, pois diminui o trabalho respiratório e a pré-carga. (F) BNP/NT-proBNP são muito úteis para confirmar o diagnóstico de IC em pacientes dispneicos no PS."
+            },
+            // Mais questões de Múltipla Escolha
+            {
+                id: 9,
+                type: 'mcq',
+                theme: 'Leitura de Exames (Sinais Vitais)',
+                question: "Paciente com IC descompensada apresenta os seguintes sinais vitais: PA 85/60 mmHg, FC 115 bpm, SatO2 91% em ar ambiente, tempo de enchimento capilar de 4 segundos. Qual o perfil hemodinâmico de Stevenson deste paciente?",
+                options: [
+                    { text: "Quente e Seco (Perfil A)", isCorrect: false, category: 'plausible' },
+                    { text: "Quente e Úmido (Perfil B)", isCorrect: false, category: 'confuser' },
+                    { text: "Frio e Seco (Perfil L)", isCorrect: false, category: 'plausible' },
+                    { text: "Frio e Úmido (Perfil C)", isCorrect: true },
+                    { text: "Morno e Encharcado (Perfil X)", isCorrect: false, category: 'absurd' },
+                ],
+                explanation: "A alternativa correta é a D. O paciente apresenta sinais de congestão (SatO2 91%) e de baixa perfusão (PA 85/60, taquicardia, TEC > 2s). A combinação de congestão ('úmido') e má perfusão ('frio') caracteriza o perfil C de Stevenson, que é o de pior prognóstico e exige manejo com diuréticos e, frequentemente, inotrópicos."
+            },
+            {
+                id: 10,
+                type: 'mcq',
+                theme: 'Conhecimento Teórico Aprofundado',
+                question: "Qual dos seguintes biomarcadores tem a maior sensibilidade e especificidade para necrose miocárdica e é o padrão-ouro para o diagnóstico de Infarto Agudo do Miocárdio?",
+                options: [
+                    { text: "Mioglobina", isCorrect: false, category: 'plausible' },
+                    { text: "Creatina quinase fração MB (CK-MB)", isCorrect: false, category: 'confuser' },
+                    { text: "Troponina cardíaca I ou T de alta sensibilidade", isCorrect: true },
+                    { text: "Lactato desidrogenase (LDH)", isCorrect: false, category: 'plausible' },
+                    { text: "Proteína C reativa ultrassensível", isCorrect: false, category: 'absurd' },
+                ],
+                explanation: "A alternativa correta é a C. As troponinas cardíacas de alta sensibilidade (cTnI ou cTnT) são os marcadores mais específicos de lesão do miocárdio. Elas se elevam precocemente e permanecem altas por dias, sendo o pilar diagnóstico do IAM. CK-MB (B) era usada no passado, mas é menos específica. Mioglobina (A) é sensível, mas nada específica. PCR (E) é um marcador de inflamação, não de necrose."
+            },
+            {
+                id: 11,
+                type: 'mcq',
+                theme: 'Raciocínio Clínico (SCA)',
+                question: "Uma mulher de 65 anos apresenta-se com angina instável. O cateterismo cardíaco revela uma lesão de 80% no terço proximal da artéria descendente anterior. Qual complicação mecânica é mais associada a um infarto extenso nesta topografia?",
+                options: [
+                    { text: "Ruptura de músculo papilar com insuficiência mitral aguda.", isCorrect: false, category: 'plausible' },
+                    { text: "Ruptura do septo interventricular (CIV).", isCorrect: true },
+                    { text: "Ruptura da parede livre do ventrículo esquerdo.", isCorrect: false, category: 'confuser' },
+                    { text: "Formação de pseudoaneurisma.", isCorrect: false, category: 'plausible' },
+                    { text: "Dissecção espontânea da artéria coronária.", isCorrect: false, category: 'absurd' },
+                ],
+                explanation: "A alternativa correta é a B. Infartos da parede anterior, irrigada pela artéria descendente anterior, são classicamente associados à ruptura do septo interventricular, resultando em uma comunicação interventricular (CIV) aguda. A ruptura de músculo papilar (A) é mais comum em infartos inferiores ou laterais (irrigação pela coronária direita ou circunflexa)."
+            },
+            {
+                id: 12,
+                type: 'mcq',
+                theme: 'Leitura de Exames (ECG)',
+                question: "No contexto de um IAMCSST de parede inferior, a presença de supradesnivelamento do segmento ST em V4R é altamente sugestiva de:",
+                options: [
+                    { text: "Extensão do infarto para a parede lateral.", isCorrect: false, category: 'plausible' },
+                    { text: "Infarto do ventrículo direito.", isCorrect: true },
+                    { text: "Oclusão da artéria descendente anterior.", isCorrect: false, category: 'confuser' },
+                    { text: "Pericardite associada.", isCorrect: false, category: 'plausible' },
+                    { text: "Erro de posicionamento dos eletrodos.", isCorrect: false, category: 'absurd' },
+                ],
+                explanation: "A alternativa correta é a B. O infarto de parede inferior (DII, DIII, aVF) é causado pela oclusão da coronária direita na maioria dos casos. Esta artéria também irriga o ventrículo direito. A presença de supra de ST em derivações direitas, como V4R, confirma o acometimento do VD. Este achado é crucial, pois implica em manejo específico (evitar nitratos e diuréticos, focar em volume)."
+            },
+            {
+                id: 13,
+                type: 'mcq',
+                theme: 'Associação de Conteúdos (Farmacologia e IC)',
+                question: "Qual é o principal benefício do uso da combinação sacubitril/valsartana em comparação com um IECA (como enalapril) em pacientes com ICFER sintomáticos?",
+                options: [
+                    { text: "Apenas melhora dos sintomas, sem impacto na mortalidade.", isCorrect: false, category: 'plausible' },
+                    { text: "Redução da tosse, principal efeito adverso dos IECAs.", isCorrect: false, category: 'plausible' },
+                    { text: "Redução significativa do desfecho combinado de morte cardiovascular e hospitalização por IC.", isCorrect: true },
+                    { text: "Prevenção primária de fibrilação atrial.", isCorrect: false, category: 'absurd' },
+                    { text: "Melhora da função renal em todos os pacientes.", isCorrect: false, category: 'confuser' },
+                ],
+                explanation: "A alternativa correta é a C. O estudo PARADIGM-HF demonstrou que sacubitril/valsartana foi superior ao enalapril na redução do desfecho primário de morte cardiovascular ou hospitalização por IC em pacientes com ICFER. Este benefício é o principal motivo para sua indicação como terapia de primeira linha em substituição aos IECAs/BRAs."
+            },
+            {
+                id: 14,
+                type: 'mcq',
+                theme: 'Conhecimento Teórico Aprofundado',
+                question: "De acordo com os critérios de Killip e Kimball, um paciente que sofre um IAM e evolui com estertores crepitantes em menos de 50% dos campos pulmonares e B3, mas sem choque cardiogênico, é classificado como:",
+                options: [
+                    { text: "Killip I", isCorrect: false, category: 'plausible' },
+                    { text: "Killip II", isCorrect: true },
+                    { text: "Killip III", isCorrect: false, category: 'confuser' },
+                    { text: "Killip IV", isCorrect: false, category: 'plausible' },
+                    { text: "Killip V (não existe)", isCorrect: false, category: 'absurd' },
+                ],
+                explanation: "A alternativa correta é a B. A classificação de Killip estratifica a gravidade da insuficiência cardíaca no IAM. Killip I: sem sinais de IC. Killip II: sinais leves a moderados de IC (estertores <50% dos pulmões, B3, turgência jugular). Killip III: Edema agudo de pulmão (estertores >50%). Killip IV: Choque cardiogênico."
+            },
+            {
+                id: 15,
+                type: 'mcq',
+                theme: 'Raciocínio Clínico (ECG)',
+                question: "Um paciente em uso de amiodarona para controle de fibrilação atrial realiza um ECG de rotina. Qual das seguintes alterações é um efeito esperado e benigno do fármaco, não indicando toxicidade?",
+                options: [
+                    { text: "Alargamento do complexo QRS > 150 ms.", isCorrect: false, category: 'plausible' },
+                    { text: "Bradicardia sinusal ou pausas sinusais > 3 segundos.", isCorrect: false, category: 'confuser' },
+                    { text: "Aumento do intervalo QT corrigido (QTc).", isCorrect: true },
+                    { text: "Bloqueio atrioventricular de segundo grau Mobitz II.", isCorrect: false, category: 'plausible' },
+                    { text: "Aparecimento de ondas delta, simulando pré-excitação.", isCorrect: false, category: 'absurd' },
+                ],
+                explanation: "A alternativa correta é a C. A amiodarona é um antiarrítmico da classe III, cujo principal mecanismo de ação é o bloqueio dos canais de potássio, prolongando a repolarização ventricular. Isso se traduz no ECG como um aumento do intervalo QT. Embora um QTc muito prolongado aumente o risco de Torsades de Pointes, um aumento discreto a moderado é um efeito esperado da terapia. As outras opções indicam toxicidade ou efeitos adversos graves."
+            },
+            {
+                id: 16,
+                type: 'mcq',
+                theme: 'Semiologia Médica',
+                question: "Durante a ausculta cardíaca de um paciente com estenose aórtica grave, qual é o achado mais característico do pulso carotídeo?",
+                options: [
+                    { text: "Pulso em martelo d'água (Celer).", isCorrect: false, category: 'confuser' },
+                    { text: "Pulso parvus et tardus.", isCorrect: true },
+                    { text: "Pulso alternante.", isCorrect: false, category: 'plausible' },
+                    { text: "Pulso paradoxal.", isCorrect: false, category: 'plausible' },
+                    { text: "Pulso filiforme.", isCorrect: false, category: 'absurd' },
+                ],
+                explanation: "A alternativa correta é a B. O pulso 'parvus et tardus' (pequena amplitude e ascensão lenta) é o achado semiológico clássico do pulso arterial em pacientes com estenose aórtica importante. Ele reflete a dificuldade de ejeção do sangue do ventrículo esquerdo através da valva estenótica. O pulso em martelo d'água (A) é típico da insuficiência aórtica."
+            },
+            {
+                id: 17,
+                type: 'mcq',
+                theme: 'Conhecimento Teórico Aprofundado',
+                question: "Na fisiopatologia da Insuficiência Cardíaca, a ativação crônica do sistema renina-angiotensina-aldosterona (SRAA) leva a efeitos deletérios, EXCETO:",
+                options: [
+                    { text: "Remodelamento cardíaco com fibrose e hipertrofia.", isCorrect: false, category: 'plausible' },
+                    { text: "Vasoconstrição periférica, aumentando a pós-carga.", isCorrect: false, category: 'plausible' },
+                    { text: "Retenção de sódio e água, aumentando a pré-carga.", isCorrect: false, category: 'confuser' },
+                    { text: "Aumento da produção de óxido nítrico, promovendo vasodilatação.", isCorrect: true },
+                    { text: "Aumento do tônus simpático.", isCorrect: false, category: 'absurd' },
+                ],
+                explanation: "A alternativa correta é a D. A ativação do SRAA tem como consequências o remodelamento (A), a vasoconstrição (B) e a retenção hidrossalina (C), todos deletérios na IC. O óxido nítrico é um vasodilatador endógeno cuja produção está, na verdade, diminuída na IC, contribuindo para a disfunção endotelial. O SRAA não promove sua produção."
+            },
+            {
+                id: 18,
+                type: 'mcq',
+                theme: 'Raciocínio Clínico (SCA)',
+                question: "Um paciente com IAM sem supra de ST é estratificado como de alto risco. Qual característica NÃO o classificaria como de alto risco, indicando uma estratégia conservadora inicial?",
+                options: [
+                    { text: "Dor torácica refratária ao tratamento clínico máximo.", isCorrect: false, category: 'plausible' },
+                    { text: "Instabilidade hemodinâmica ou choque cardiogênico.", isCorrect: false, category: 'plausible' },
+                    { text: "Arritmias ventriculares graves (TV/FV).", isCorrect: false, category: 'confuser' },
+                    { text: "Escore GRACE > 140.", isCorrect: false, category: 'plausible' },
+                    { text: "ECG de entrada completamente normal e sem alterações dinâmicas.", isCorrect: true },
+                ],
+                explanation: "A alternativa correta é a E. Todas as outras opções (A, B, C, D) são critérios de alto ou muito alto risco que indicam uma estratégia invasiva precoce (cateterismo em 2 a 24 horas). Um ECG persistentemente normal, associado a marcadores negativos e ausência de outros critérios de risco, classifica o paciente como de baixo risco, permitindo uma abordagem inicial mais conservadora."
+            },
+            {
+                id: 19,
+                type: 'mcq',
+                theme: 'Leitura de Exames (Valores de Referência)',
+                question: "Um paciente com dispneia progressiva realiza um ecocardiograma que mostra uma fração de ejeção do ventrículo esquerdo (FEVE) de 35%. Considerando os valores de referência, como essa função sistólica é classificada?",
+                options: [
+                    { text: "Normal (Preservada)", isCorrect: false, category: 'plausible' },
+                    { text: "Levemente reduzida (Mid-range)", isCorrect: false, category: 'confuser' },
+                    { text: "Moderadamente a Gravemente Reduzida", isCorrect: true },
+                    { text: "Hiperdinâmica", isCorrect: false, category: 'absurd' },
+                    { text: "Indeterminada", isCorrect: false, category: 'plausible' },
+                ],
+                explanation: "A alternativa correta é a C. A classificação da FEVE é: >50-55% (Preservada), 41-49% (Levemente Reduzida ou 'Mid-range'), e ≤40% (Reduzida). Um valor de 35% se enquadra claramente na categoria de função sistólica reduzida, sendo considerada uma disfunção moderada a grave."
+            },
+            {
+                id: 20,
+                type: 'mcq',
+                theme: 'Associação de Conteúdos (Semiologia e ECG)',
+                question: "A presença de 'ondas a em canhão' no pulso venoso jugular está associada a qual achado eletrocardiográfico?",
+                options: [
+                    { text: "Fibrilação atrial.", isCorrect: false, category: 'confuser' },
+                    { text: "Bloqueio de ramo esquerdo.", isCorrect: false, category: 'plausible' },
+                    { text: "Dissociação atrioventricular (AV).", isCorrect: true },
+                    { text: "Síndrome do QT longo.", isCorrect: false, category: 'plausible' },
+                    { text: "Ritmo juncional.", isCorrect: false, category: 'absurd' },
+                ],
+                explanation: "A alternativa correta é a C. As 'ondas a em canhão' ocorrem quando o átrio direito contrai contra uma valva tricúspide fechada. Isso acontece em situações de dissociação AV, como no bloqueio AV total (BAVT) ou em taquicardias ventriculares, onde a contração atrial e ventricular não são sincronizadas. O sangue é 'jogado' de volta para a veia jugular, criando uma onda de pulso gigante."
+            }
+        ];
+
+
+        let currentQuestionIndex = 0;
+        let userAnswers = new Array(questions.length).fill(null);
+        let quizStartTime;
+
+
+        const startScreen = document.getElementById('start-screen');
+        const quizScreen = document.getElementById('quiz-screen');
+        const resultsScreen = document.getElementById('results-screen');
+        const startBtn = document.getElementById('start-btn');
+        const questionNumberEl = document.getElementById('question-number');
+        const progressBar = document.getElementById('progress-bar');
+        const questionContainer = document.getElementById('question-container');
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const finishBtn = document.getElementById('finish-btn');
+        
+        startBtn.addEventListener('click', startQuiz);
+        prevBtn.addEventListener('click', showPreviousQuestion);
+        nextBtn.addEventListener('click', showNextQuestion);
+        finishBtn.addEventListener('click', finishQuiz);
+
+
+        function startQuiz() {
+            quizStartTime = new Date();
+            startScreen.classList.add('hidden');
+            quizScreen.classList.remove('hidden');
+            showQuestion(currentQuestionIndex);
+        }
+
+
+        function showQuestion(index) {
+            const question = questions[index];
+            questionContainer.innerHTML = ''; 
+
+
+            const questionText = document.createElement('p');
+            questionText.className = 'text-lg md:text-xl font-semibold mb-6';
+            questionText.textContent = question.question;
+            questionContainer.appendChild(questionText);
+
+
+            if (question.type === 'roman' || question.type === 'true-false') {
+                const statementsList = document.createElement('div');
+                statementsList.className = 'space-y-3 bg-gray-50 p-4 rounded-lg mb-6';
+                question.statements.forEach(stmt => {
+                    const item = document.createElement('p');
+                    item.className = 'text-gray-700';
+                    item.textContent = stmt;
+                    statementsList.appendChild(item);
+                });
+                questionContainer.appendChild(statementsList);
+            }
+
+
+            if (question.type === 'columns') {
+                const columnsDiv = document.createElement('div');
+                columnsDiv.className = 'column-container mb-6';
+                
+                const colA = document.createElement('div');
+                colA.className = 'column bg-blue-50 p-4 rounded-lg';
+                const colATitle = document.createElement('h4');
+                colATitle.className = 'font-bold mb-2 border-b pb-2';
+                colATitle.textContent = 'Coluna A';
+                colA.appendChild(colATitle);
+                question.columns.A.forEach(item => {
+                    const p = document.createElement('p');
+                    p.className = 'mt-2';
+                    p.textContent = item;
+                    colA.appendChild(p);
+                });
+
+
+                const colB = document.createElement('div');
+                colB.className = 'column bg-green-50 p-4 rounded-lg';
+                 const colBTitle = document.createElement('h4');
+                colBTitle.className = 'font-bold mb-2 border-b pb-2';
+                colBTitle.textContent = 'Coluna B';
+                colB.appendChild(colBTitle);
+                question.columns.B.forEach(item => {
+                    const p = document.createElement('p');
+                    p.className = 'mt-2';
+                    p.textContent = item;
+                    colB.appendChild(p);
+                });
+
+
+                columnsDiv.appendChild(colA);
+                columnsDiv.appendChild(colB);
+                questionContainer.appendChild(columnsDiv);
+            }
+
+
+            const optionsGrid = document.createElement('div');
+            optionsGrid.className = 'grid grid-cols-1 gap-4';
+            question.options.forEach((option, optionIndex) => {
+                const optionEl = document.createElement('div');
+                optionEl.className = 'quiz-option flex items-center p-4 border-2 border-gray-200 rounded-lg cursor-pointer bg-white';
+                
+                const optionLetter = document.createElement('span');
+                optionLetter.className = 'font-bold mr-4 text-blue-600';
+                optionLetter.textContent = String.fromCharCode(65 + optionIndex) + '.';
+                
+                const optionText = document.createElement('span');
+                optionText.textContent = option.text;
+                
+                optionEl.appendChild(optionLetter);
+                optionEl.appendChild(optionText);
+
+
+                if (userAnswers[index] === optionIndex) {
+                    optionEl.classList.add('selected');
+                }
+
+
+                optionEl.addEventListener('click', () => selectAnswer(index, optionIndex));
+                optionsGrid.appendChild(optionEl);
+            });
+
+
+            questionContainer.appendChild(optionsGrid);
+            updateNavigation();
+        }
+        
+        function selectAnswer(questionIndex, optionIndex) {
+            userAnswers[questionIndex] = optionIndex;
+            // Rerender a questão para mostrar a seleção
+            showQuestion(questionIndex);
+        }
+
+
+        function updateNavigation() {
+            const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
+            progressBar.style.width = `${progress}%`;
+            questionNumberEl.textContent = currentQuestionIndex + 1;
+
+
+            prevBtn.disabled = currentQuestionIndex === 0;
+            prevBtn.classList.toggle('opacity-50', prevBtn.disabled);
+            
+            if (currentQuestionIndex === questions.length - 1) {
+                nextBtn.classList.add('hidden');
+                finishBtn.classList.remove('hidden');
+            } else {
+                nextBtn.classList.remove('hidden');
+                finishBtn.classList.add('hidden');
+            }
+        }
+        
+        function showNextQuestion() {
+            if (currentQuestionIndex < questions.length - 1) {
+                currentQuestionIndex++;
+                showQuestion(currentQuestionIndex);
+            }
+        }
+
+
+        function showPreviousQuestion() {
+            if (currentQuestionIndex > 0) {
+                currentQuestionIndex--;
+                showQuestion(currentQuestionIndex);
+            }
+        }
+
+
+        function finishQuiz() {
+            quizScreen.classList.add('hidden');
+            resultsScreen.classList.remove('hidden');
+            displayResults();
+        }
+
+
+        function displayResults() {
+            let correctCount = 0;
+            const errorThemes = {};
+
+
+            questions.forEach((q, index) => {
+                const userAnswerIndex = userAnswers[index];
+                if (userAnswerIndex !== null && q.options[userAnswerIndex].isCorrect) {
+                    correctCount++;
+                } else {
+                    // Contabiliza erro por tema
+                    const theme = q.theme;
+                    if(errorThemes[theme]) {
+                        errorThemes[theme]++;
+                    } else {
+                        errorThemes[theme] = 1;
+                    }
+                }
+            });
+
+
+            const score = Math.round((correctCount / questions.length) * 100);
+            document.getElementById('score').textContent = score;
+            document.getElementById('correct-answers').textContent = correctCount;
+
+
+            const finalMessage = document.getElementById('final-message');
+            if (score >= 60) {
+                finalMessage.textContent = "Parabéns pelo excelente desempenho! Seu esforço e dedicação estão claros. Continue aprofundando seus conhecimentos para se tornar um profissional ainda mais completo.";
+                finalMessage.className = 'text-base italic text-gray-700 mb-8 p-4 bg-green-100 border-l-4 border-green-500 rounded';
+            } else {
+                finalMessage.textContent = "Não desanime! Cada erro é uma oportunidade de aprendizado. A jornada do conhecimento é longa, mas com persistência, você alcançará seus objetivos. Reveja os temas e tente novamente!";
+                 finalMessage.className = 'text-base italic text-gray-700 mb-8 p-4 bg-red-100 border-l-4 border-red-500 rounded';
+            }
+
+
+            // Diagnóstico Pedagógico
+            const diagnosisContainer = document.getElementById('pedagogical-diagnosis');
+            diagnosisContainer.innerHTML = '';
+            if(Object.keys(errorThemes).length > 0) {
+                const sortedThemes = Object.entries(errorThemes).sort(([,a],[,b]) => b-a);
+                
+                sortedThemes.forEach(([theme, count]) => {
+                    const div = document.createElement('div');
+                    div.className = 'p-4 bg-gray-50 rounded-lg border';
+                    const title = document.createElement('h4');
+                    title.className = 'font-bold text-gray-800';
+                    title.textContent = `${theme} (${count} erro${count > 1 ? 's' : ''})`;
+                    const suggestion = document.createElement('p');
+                    suggestion.className = 'text-sm text-gray-600 mt-1';
+                    suggestion.textContent = getStudySuggestion(theme);
+                    div.appendChild(title);
+                    div.appendChild(suggestion);
+                    diagnosisContainer.appendChild(div);
+                });
+
+
+            } else {
+                 diagnosisContainer.innerHTML = '<p class="text-green-600 font-semibold">Você não cometeu erros! Desempenho impecável. Parabéns!</p>';
+            }
+
+
+            document.getElementById('review-btn').addEventListener('click', () => {
+                document.getElementById('review-modal').classList.remove('hidden');
+                renderReview();
+            });
+            document.getElementById('close-modal-btn').addEventListener('click', () => {
+                document.getElementById('review-modal').classList.add('hidden');
+            });
+        }
+        
+        function getStudySuggestion(theme) {
+            const suggestions = {
+                'Raciocínio Clínico (SCA)': 'Sugestão: Revise os fluxogramas de atendimento do IAMCSST e IAMSSST, focando nos critérios de reperfusão e estratificação de risco.',
+                'Leitura de Exames (ECG)': 'Sugestão: Pratique a interpretação de ECGs, correlacionando os achados com a topografia do infarto e distúrbios de condução. Foque nos critérios de bloqueios de ramo e sobrecargas.',
+                'Associação de Conteúdos (Farmacologia e IC)': 'Sugestão: Estude as classes de medicamentos para ICFER (o "quarteto fantástico") e SCA, entendendo seus mecanismos de ação e indicações precisas.',
+                'Raciocínio Clínico (IC)': 'Sugestão: Aprofunde-se na semiologia da IC e nos perfis hemodinâmicos de Stevenson para guiar a terapêutica na fase aguda.',
+                'Associação de Conteúdos (ECG e Eletrólitos)': 'Sugestão: Memorize as alterações eletrocardiográficas clássicas dos principais distúrbios eletrolíticos, especialmente do potássio e cálcio.',
+                'Leitura de Exames (ECG e Localização do IAM)': 'Sugestão: Crie um mapa mental ou tabela correlacionando as derivações do ECG com as paredes do coração e as artérias coronárias correspondentes.',
+                'Associação de Conteúdos (Farmacologia e SCA)': 'Sugestão: Revise a farmacologia da "dupla antiagregação plaquetária" e dos anticoagulantes, entendendo quando e por que usar cada um.',
+                'Leitura de Exames (Sinais Vitais)': 'Sugestão: Treine a aplicação dos perfis de Stevenson na prática, usando casos clínicos para identificar pacientes "quentes/frios" e "secos/úmidos".',
+                'Conhecimento Teórico Aprofundado': 'Sugestão: Volte aos conceitos básicos de fisiopatologia da aterosclerose, IC e necrose miocárdica. Entender o "porquê" ajuda a fixar o conhecimento.',
+                'Semiologia Médica': 'Sugestão: Assista a vídeos de ausculta cardíaca e exame do pulso arterial/venoso para refinar suas habilidades semiológicas.',
+                'Leitura de Exames (Valores de Referência)': 'Sugestão: Crie flashcards com os principais valores de referência (FEVE, troponina, BNP) e suas implicações clínicas.'
+            };
+            return suggestions[theme] || 'Sugestão: Revise este tópico com atenção em seu material de estudo.';
+        }
+
+
+        function renderReview() {
+            const reviewContent = document.getElementById('review-content');
+            reviewContent.innerHTML = '';
+
+
+            questions.forEach((q, index) => {
+                const userAnswerIndex = userAnswers[index];
+                const correctOptionIndex = q.options.findIndex(opt => opt.isCorrect);
+
+
+                const questionBlock = document.createElement('div');
+                questionBlock.className = 'p-4 border rounded-lg';
+
+
+                const questionTitle = document.createElement('p');
+                questionTitle.className = 'font-bold mb-2';
+                questionTitle.textContent = `Questão ${index + 1}: ${q.question}`;
+                questionBlock.appendChild(questionTitle);
+
+
+                const userAnswerText = document.createElement('p');
+                userAnswerText.className = 'mb-2';
+                const userAnswerLabel = userAnswerIndex === null ? 'Nenhuma resposta' : q.options[userAnswerIndex].text;
+                userAnswerText.innerHTML = `<strong>Sua resposta:</strong> <span class="${userAnswerIndex === correctOptionIndex ? 'text-green-600' : 'text-red-600'}">${String.fromCharCode(65 + userAnswerIndex)}. ${userAnswerLabel}</span>`;
+                questionBlock.appendChild(userAnswerText);
+
+
+                if (userAnswerIndex !== correctOptionIndex) {
+                    const correctAnswerText = document.createElement('p');
+                    correctAnswerText.className = 'mb-2';
+                    correctAnswerText.innerHTML = `<strong>Resposta correta:</strong> <span class="text-green-600">${String.fromCharCode(65 + correctOptionIndex)}. ${q.options[correctOptionIndex].text}</span>`;
+                    questionBlock.appendChild(correctAnswerText);
+                }
+
+
+                const explanation = document.createElement('div');
+                explanation.className = 'mt-3 pt-3 border-t bg-gray-50 p-3 rounded';
+                explanation.innerHTML = `<strong>Comentário:</strong> ${q.explanation}`;
+                questionBlock.appendChild(explanation);
+
+
+                reviewContent.appendChild(questionBlock);
+            });
+        }
+    });
+    </script>
+</body>
+</html>
